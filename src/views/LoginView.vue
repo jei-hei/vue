@@ -1,11 +1,12 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
+    <div class="login-card" role="main" aria-labelledby="login-heading">
       <div class="login-header">
-        <h1>SCHOLARSHIP<br />TRACKER</h1>
+        <h1 id="login-heading">SCHOLARSHIP<br />TRACKER</h1>
         <p>Log in to your account</p>
       </div>
 
+      <!-- Role selector -->
       <div class="campus-box" aria-label="Select role">
         <button
           v-for="r in roles"
@@ -19,7 +20,8 @@
         </button>
       </div>
 
-      <div class="campus-box">
+      <!-- Campus selector (only for students) -->
+      <div v-if="role === 'student'" class="campus-box" aria-label="Select campus">
         <button
           v-for="c in campuses"
           :key="c"
@@ -32,60 +34,38 @@
         </button>
       </div>
 
-      <label v-if="role === 'student'" class="label" for="student_id">ID Number</label>
+      <!-- Username -->
+      <label class="label" for="username">Username</label>
       <input
-        v-if="role === 'student'"
-        id="student_id"
+        id="username"
         class="input"
-        v-model="student_id"
-        placeholder="Format 12-3456"
+        v-model="username"
+        placeholder="Enter your username"
         autocomplete="username"
+        @keyup.enter="doLogin"
       />
 
-      <label v-if="role === 'student'" class="label" for="lrn">LRN (required)</label>
+      <!-- Password -->
+      <label class="label" for="password">Password</label>
       <input
-        v-if="role === 'student'"
-        id="lrn"
-        class="input"
-        type="password"
-        v-model="lrn"
-        placeholder="Enter full 12-digit LRN (numbers only)"
-        autocomplete="off"
-      />
-
-      <label v-if="role === 'student'" class="label" for="password">Password (optional)</label>
-      <input
-        v-if="role === 'student'"
         id="password"
-        class="input"
-        type="password"
-        v-model="password"
-        placeholder="Enter your password (optional)"
-        autocomplete="current-password"
-      />
-
-      <label v-if="role === 'admin'" class="label" for="email">Email</label>
-      <input
-        v-if="role === 'admin'"
-        id="email"
-        class="input"
-        v-model="email"
-        placeholder="Enter your email"
-        autocomplete="username"
-      />
-
-      <label v-if="role === 'admin'" class="label" for="password_admin">Password</label>
-      <input
-        v-if="role === 'admin'"
-        id="password_admin"
         class="input"
         type="password"
         v-model="password"
         placeholder="Enter your password"
         autocomplete="current-password"
+        @keyup.enter="doLogin"
       />
 
-      <button class="login-btn" :disabled="loading" @click="doLogin">
+      <!-- Inline error -->
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <button
+        class="login-btn"
+        :disabled="loading"
+        @click="doLogin"
+        aria-busy="loading"
+      >
         {{ loading ? "Logging in..." : "Login" }}
       </button>
 
@@ -104,15 +84,14 @@ export default {
   name: "LoginView",
   data() {
     return {
-      roles: ["student", "admin"],
-      role: "student",
+      roles: ["admin", "student"],
+      role: "admin",
       campuses: ["Echague", "Angadanan", "Jones", "Santiago"],
       campus: "Echague",
-      student_id: "",
-      lrn: "",
-      email: "",
+      username: "",
       password: "",
       loading: false,
+      error: null,
     };
   },
   methods: {
@@ -120,76 +99,79 @@ export default {
       if (!s) return s;
       return s.charAt(0).toUpperCase() + s.slice(1);
     },
-    normalizeStudentId(raw) {
-      return (raw || "").trim();
-    },
+
     async doLogin() {
+      this.error = null;
       this.loading = true;
+
       try {
         // Clear stale token so login request is clean
-        localStorage.removeItem("access_token");
+        localStorage.removeItem("token");
         delete api.defaults.headers.common["Authorization"];
 
-        // Build payload
-        const payload = { campus: this.campus, role: this.role };
+        // Build payload according to backend expectations
+        const payload = {
+          username: (this.username || "").trim(),
+          password: this.password || "",
+        };
 
+        // campus is required for student, optional for admin
         if (this.role === "student") {
-          const studentId = this.normalizeStudentId(this.student_id);
-          const lrn = (this.lrn || "").trim();
-          const pwd = (this.password || "").trim();
+          payload.campus = this.campus;
+        }
 
-          if (!studentId) throw new Error("Please enter your ID Number (format 12-3456)");
-          if (!/^\d{2}-\d{4}$/.test(studentId)) throw new Error("ID Number must match format 12-3456");
-          if (!lrn || !/^\d{12}$/.test(lrn)) throw new Error("Please enter a valid 12-digit LRN");
-
-          payload.student_id = studentId;
-          payload.lrn = lrn;
-          if (pwd) payload.password = pwd;
-        } else {
-          const email = (this.email || "").trim().toLowerCase();
-          const pwd = (this.password || "").trim();
-          if (!email) throw new Error("Please enter your email");
-          if (!pwd) throw new Error("Please enter your password");
-          payload.email = email;
-          payload.password = pwd;
+        // Basic client-side validation
+        if (!payload.username) {
+          this.error = "Please enter your username";
+          throw new Error(this.error);
+        }
+        if (!payload.password) {
+          this.error = "Please enter your password";
+          throw new Error(this.error);
+        }
+        if (this.role === "student" && !payload.campus) {
+          this.error = "Please select your campus";
+          throw new Error(this.error);
         }
 
         // Call centralized login helper
         const data = await apiLogin(payload);
 
-        const token = data?.access_token || data?.token || null;
-        if (!token) throw new Error(data?.message || "Login failed: no token returned");
+        // backend returns token and role (token key is `token` per your backend)
+        const token = data?.token || null;
+        if (!token) {
+          const msg = data?.message || "Login failed: no token returned";
+          this.error = msg;
+          throw new Error(msg);
+        }
 
-        // Ensure header and storage are set
-        localStorage.setItem("access_token", token);
+        // Persist token and user and set axios header
+        localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(data.user || {}));
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-        // Navigate
-        const role = (data.user?.role || "").toLowerCase();
-        const target = role === "admin" ? "/admin-dashboard" : "/dashboard";
-        await this.$router.replace(target);
+        // Navigate based on role returned by backend (data.role)
+        const returnedRole = (data.role || "").toLowerCase();
+        if (returnedRole === "admin") {
+          await this.$router.replace("/admin-dashboard");
+        } else {
+          await this.$router.replace("/dashboard");
+        }
       } catch (e) {
-        let msg = e.message || "Login failed";
-        if (e.response) {
-          if (e.response.status === 422 && e.response.data?.errors) {
-            const errs = Object.values(e.response.data.errors).flat();
-            msg = errs.join("; ");
-          } else if (e.response.data?.message) {
-            msg = e.response.data.message;
-          } else {
-            msg = `Server error (${e.response.status})`;
-          }
+        // Prefer server message when available
+        if (e.response && e.response.data) {
+          this.error = e.response.data.message || this.error || "Login failed";
+        } else {
+          this.error = this.error || e.message || "Login failed";
         }
         console.error("Login error:", e);
-        alert(msg);
       } finally {
         this.loading = false;
       }
     },
   },
   mounted() {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("token");
     if (token) {
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
@@ -260,6 +242,14 @@ export default {
   border: 1px solid #444;
   background: #1e1e1e;
   color: #fff;
+}
+.error {
+  color: #ffb4b4;
+  background: #3a1f1f;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 8px 0;
+  font-size: 13px;
 }
 .login-btn {
   width: 100%;
