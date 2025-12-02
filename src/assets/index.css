@@ -1,0 +1,121 @@
+/* ===== LOGIN PAGE (old UI) ===== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  height: 100vh;
+  background: #1f6b87;           /* teal-blue background like original */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-container {
+  width: 380px;
+  background: #2b2b2b;
+  border-radius: 12px;
+  padding: 28px 26px 22px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+  color: #fff;
+}
+
+.login-header h1 {
+  text-align: center;
+  color: #01a9ff;
+  letter-spacing: 2px;
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.login-header p {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.9;
+  margin-bottom: 18px;
+}
+
+.campus-grid {
+  background: #fff;
+  border-radius: 6px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0 18px;
+}
+
+.campus {
+  border: none;
+  padding: 10px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: #111;
+}
+
+.campus.active {
+  background: #01a9ff;
+  color: #fff;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 10px;
+  display: block;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #232323;
+  color: #fff;
+  outline: none;
+}
+
+input::placeholder {
+  color: #cfcfcf;
+  font-size: 12px;
+}
+
+button[type="submit"] {
+  width: 100%;
+  border: none;
+  padding: 12px;
+  border-radius: 7px;
+  margin-top: 8px;
+  cursor: pointer;
+  background: #01a9ff;
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+button[type="submit"]:hover {
+  background: #0bb6ff;
+}
+
+.login-footer {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.login-footer a {
+  color: #01a9ff;
+  text-decoration: none;
+  font-weight: 700;
+}
